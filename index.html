@@ -287,9 +287,12 @@ section { position: relative; padding: clamp(4.5rem, 9vw, 7.5rem) 0; }
   background: var(--surface-2);
   border: 1px solid var(--border);
   color: var(--text-2);
-  transition: color var(--t), border-color var(--t), background var(--t);
+  transition: color var(--t), border-color var(--t), background var(--t), transform var(--t);
 }
-.chip:hover { color: var(--accent); border-color: var(--accent-line); background: var(--accent-soft); }
+.chip:hover {
+  color: var(--accent); border-color: var(--accent-line);
+  background: var(--accent-soft); transform: translateY(-2px);
+}
 
 /* ─── NAVBAR ─────────────────────────────────────────────── */
 .nav {
@@ -551,6 +554,8 @@ section { position: relative; padding: clamp(4.5rem, 9vw, 7.5rem) 0; }
 .term-dot:first-child { background: var(--accent); opacity: 0.75; }
 .term-title { margin-left: 0.4rem; color: var(--text-3); font-size: 0.68rem; letter-spacing: 0.04em; }
 
+/* min-height keeps the panel from growing line by line as the terminal
+   types itself out, which would shove the node graph down the page. */
 .term-body { padding: 1rem 1.1rem 1.2rem; min-height: 236px; }
 .term-line { display: block; white-space: pre-wrap; word-break: break-word; line-height: 1.85; }
 .term-line .p { color: var(--accent); }
@@ -647,16 +652,8 @@ section { position: relative; padding: clamp(4.5rem, 9vw, 7.5rem) 0; }
   margin-bottom: 1.1rem;
 }
 .interests { display: flex; flex-wrap: wrap; gap: 0.45rem; }
-
-.stats {
-  display: grid; grid-template-columns: repeat(2, 1fr);
-  gap: 1px; background: var(--border);
-  border: 1px solid var(--border); border-radius: var(--r);
-  overflow: hidden; margin-top: 1.5rem;
-}
-.stat { background: var(--surface); padding: 1.05rem 1.15rem; }
-.stat .v { font-size: 0.98rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 0.15rem; }
-.stat .l { font-family: var(--f-mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+.interests-panel { margin-top: 1.75rem; }
+.interests-panel .chip { padding: 0.42rem 0.78rem; }
 
 /* ─── SKILLS ─────────────────────────────────────────────── */
 .skills-grid {
@@ -664,8 +661,32 @@ section { position: relative; padding: clamp(4.5rem, 9vw, 7.5rem) 0; }
   grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
   gap: 1rem;
 }
-.skill-card { padding: 1.4rem 1.5rem; }
+.skill-card { position: relative; overflow: hidden; padding: 1.4rem 1.5rem; }
 .skill-card:hover { border-color: var(--border-2); transform: translateY(-3px); box-shadow: var(--sh-2); }
+
+/* Accent hairline wipes across the top edge on hover — the same language
+   the project cards use, so hovering anything card-shaped feels the same. */
+.skill-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  transform: scaleX(0); opacity: 0;
+  transition: transform 0.55s var(--ease), opacity 0.3s var(--ease);
+}
+.skill-card:hover::before { transform: scaleX(1); opacity: 1; }
+
+/* A soft accent wash bleeding in from the corner. Fixed position rather
+   than cursor-tracking: pointer-driven gradients mean a paint per mouse
+   move, and this reads the same for none of that cost. */
+.skill-card::after {
+  content: ''; position: absolute; top: -60px; right: -60px;
+  width: 190px; height: 190px; border-radius: 50%;
+  background: radial-gradient(circle, var(--accent) 0%, transparent 68%);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.4s var(--ease);
+}
+.skill-card:hover::after { opacity: 0.075; }
+.skill-card > * { position: relative; z-index: 1; }
+
 .skill-head { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 1.05rem; }
 .skill-head svg {
   width: 32px; height: 32px; padding: 7px;
@@ -674,15 +695,32 @@ section { position: relative; padding: clamp(4.5rem, 9vw, 7.5rem) 0; }
   border-radius: 8px;
   stroke: var(--accent); fill: none; stroke-width: 1.7;
   flex-shrink: 0;
-  transition: transform var(--t), background var(--t), border-color var(--t);
+  transition: transform var(--t), background var(--t), border-color var(--t), box-shadow var(--t);
 }
 .skill-card:hover .skill-head svg {
-  transform: translateY(-2px) rotate(-6deg);
+  transform: translateY(-2px) rotate(-6deg) scale(1.06);
   background: color-mix(in srgb, var(--accent) 16%, transparent);
   border-color: var(--accent);
+  box-shadow: 0 6px 18px -6px var(--accent);
 }
-.skill-head h3 { font-size: 0.97rem; font-weight: 600; letter-spacing: -0.01em; }
+.skill-head h3 {
+  font-size: 0.97rem; font-weight: 600; letter-spacing: -0.01em;
+  transition: color var(--t);
+}
+.skill-card:hover .skill-head h3 { color: var(--accent); }
 .skill-items { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+/* Chips cascade in once their card has revealed. This is an animation and
+   not a transition on purpose: a transition-delay here would also delay
+   the hover colour change by up to half a second. */
+@keyframes chip-in { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
+@keyframes chip-fade { from { opacity: 0; } to { opacity: 1; } }
+.skill-card:not(.in) .chip { opacity: 0; }
+.skill-card.in .chip {
+  animation: chip-in 0.42s var(--ease) backwards;
+  animation-delay: calc(var(--n, 0) * 45ms + 0.14s);
+}
+.skill-card:hover .chip { border-color: var(--border-2); }
 
 /* ─── PROJECTS ───────────────────────────────────────────── */
 .projects { display: flex; flex-direction: column; gap: clamp(1.25rem, 3vw, 2rem); }
@@ -912,7 +950,6 @@ footer { border-top: 1px solid var(--border); padding: 2.25rem 0; background: va
   .project, .project:nth-child(even) .project-vis { grid-template-columns: 1fr; }
   .project:nth-child(even) .project-vis { order: 0; border-left: none; }
   .project-vis { border-right: none; border-bottom: 1px solid var(--border); min-height: 220px; }
-  .stats { grid-template-columns: repeat(4, 1fr); }
 }
 
 @media (max-width: 860px) {
@@ -934,11 +971,15 @@ footer { border-top: 1px solid var(--border); padding: 2.25rem 0; background: va
      card repaints a large area every frame, and several overlap while
      scrolling. Fading alone reads the same at this size. */
   .rv { transform: none; transition: opacity 0.4s var(--ease); }
+
+  /* Same reasoning for the chip cascade: fade only, and a tighter stagger
+     so a card of eight chips is not still settling after half a second. */
+  .skill-card.in .chip { animation-name: chip-fade; animation-delay: calc(var(--n, 0) * 28ms + 0.1s); }
+  .skill-card::after { display: none; }
 }
 
 @media (max-width: 620px) {
   .feats { grid-template-columns: 1fr; }
-  .stats { grid-template-columns: repeat(2, 1fr); }
   .skills-grid { grid-template-columns: 1fr; }
   .forum { flex-direction: column; align-items: flex-start; gap: 1rem; }
 }
@@ -971,6 +1012,10 @@ footer { border-top: 1px solid var(--border); padding: 2.25rem 0; background: va
   .tl-item::before { opacity: 1 !important; transform: scale(1) !important; }
   .rv:not(.in) .eyebrow::before { transform: none !important; }
   .progress { transition: none !important; }
+  /* the universal rule above zeroes duration but not delay, and these
+     hold at opacity 0 through their delay via animation-fill-mode */
+  .chip { opacity: 1 !important; animation: none !important; }
+  .skill-card::before { transition: none !important; }
 }
 </style>
 </head>
@@ -1030,9 +1075,8 @@ footer { border-top: 1px solid var(--border); padding: 2.25rem 0; background: va
         </p>
 
         <p class="hero-desc">
-          I'm a Computer Science student at Sitare University focused on building practical
-          software solutions across web development, artificial intelligence, data, and core
-          computer science.
+          I'm a Computer Science student focused on building practical software across web
+          development, artificial intelligence, data, and core computer science.
         </p>
 
         <div class="hero-ctas">
@@ -1072,22 +1116,24 @@ footer { border-top: 1px solid var(--border); padding: 2.25rem 0; background: va
       <div class="about-grid">
         <div class="about-copy rv">
           <p>
-            I am a B.Tech Computer Science student at Sitare University building a strong
-            foundation in algorithms, software engineering, databases, artificial intelligence,
-            and web development.
+            I am a B.Tech Computer Science student building a strong foundation in algorithms,
+            software engineering, databases, artificial intelligence, and web development.
           </p>
           <p>
-            I enjoy solving real-world problems through software and turning ideas into practical
-            applications. My interests include Artificial Intelligence, Data Science, Full-Stack
-            Development, Data Structures &amp; Algorithms, Cloud Computing, and System Design.
+            I enjoy solving real-world problems through software and turning ideas into working
+            applications — most of what I know well, I learned by building it rather than by
+            reading about it.
           </p>
           <p>
-            I am particularly interested in applying technology to meaningful problems while
-            continuously improving my engineering skills through projects, problem solving,
-            experimentation, and collaboration.
+            I am especially drawn to applying technology to problems that matter, and I keep
+            sharpening my engineering skills through projects, problem solving, experimentation,
+            and collaboration.
           </p>
 
-          <div class="stats" id="stats"></div>
+          <div class="card panel interests-panel">
+            <h3>Engineering Interests</h3>
+            <div class="interests" id="interests"></div>
+          </div>
         </div>
 
         <div class="rv about-side">
@@ -1116,11 +1162,6 @@ footer { border-top: 1px solid var(--border); padding: 2.25rem 0; background: va
               <animate attributeName="opacity" values="0;1;1;1;0" dur="4.5s" repeatCount="indefinite"/>
             </circle>
           </svg>
-
-          <div class="card panel">
-            <h3>Engineering Interests</h3>
-            <div class="interests" id="interests"></div>
-          </div>
         </div>
       </div>
     </div>
@@ -1270,6 +1311,7 @@ footer { border-top: 1px solid var(--border); padding: 2.25rem 0; background: va
           <a href="mailto:ravirajput91618@gmail.com">ravirajput91618@gmail.com</a>
           <a href="tel:+917999315464">+91 79993 15464</a>
           <a href="https://x.com/RaviUmath" target="_blank" rel="noopener noreferrer">x.com/RaviUmath<svg class="ext" viewBox="0 0 24 24" aria-hidden="true" style="display:inline-block;vertical-align:-1px;margin-left:4px;stroke:currentColor;fill:none;stroke-width:2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></a>
+          <a href="https://www.instagram.com/ravi_rajput_umath/" target="_blank" rel="noopener noreferrer">@ravi_rajput_umath<svg class="ext" viewBox="0 0 24 24" aria-hidden="true" style="display:inline-block;vertical-align:-1px;margin-left:4px;stroke:currentColor;fill:none;stroke-width:2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg></a>
           <span>Lucknow, India</span>
         </div>
       </div>
@@ -1298,6 +1340,9 @@ footer { border-top: 1px solid var(--border); padding: 2.25rem 0; background: va
         </a>
         <a href="https://x.com/RaviUmath" target="_blank" rel="noopener noreferrer" aria-label="X">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4l11.7 16H20L8.3 4zM4 20l6.8-6.8M20 4l-6.8 6.8" stroke-linecap="round"/></svg>
+        </a>
+        <a href="https://www.instagram.com/ravi_rajput_umath/" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" stroke-linecap="round"/></svg>
         </a>
         <a href="mailto:ravirajput91618@gmail.com" aria-label="Email">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
@@ -1335,13 +1380,6 @@ footer { border-top: 1px solid var(--border); padding: 2.25rem 0; background: va
     ['Home', 'hero'], ['About', 'about'], ['Skills', 'skills'],
     ['Projects', 'projects'], ['Achievements', 'achievements'],
     ['Education', 'education'], ['Contact', 'contact']
-  ];
-
-  var STATS = [
-    ['B.Tech Computer Science', 'Degree Program'],
-    ['14', 'Public Repositories'],
-    ['SIH 2024 &amp; 2025', 'Smart India Hackathon'],
-    ['Hackofestia 6.0', 'Pre-Finalist']
   ];
 
   var INTERESTS = [
@@ -1553,22 +1591,22 @@ footer { border-top: 1px solid var(--border); padding: 2.25rem 0; background: va
     return '<a href="#' + i[1] + '" data-sec="' + i[1] + '">' + i[0] + '</a>';
   }).join('');
 
-  $('stats').innerHTML = STATS.map(function (s) {
-    return '<div class="stat"><div class="v">' + s[0] + '</div><div class="l">' + s[1] + '</div></div>';
-  }).join('');
-
   $('interests').innerHTML = INTERESTS.map(function (i) {
     return '<span class="chip">' + i + '</span>';
   }).join('');
 
-  $('skillsGrid').innerHTML = SKILLS.map(function (s) {
-    return '<div class="card skill-card rv">' +
+  /* --d staggers the cards down the grid, --n staggers the chips inside
+     each one. Both are read by CSS; the JS only supplies the index. */
+  $('skillsGrid').innerHTML = SKILLS.map(function (s, ci) {
+    return '<div class="card skill-card rv" style="--d:' + (ci % 3) * 80 + 'ms">' +
       '<div class="skill-head">' +
         '<svg viewBox="0 0 24 24" aria-hidden="true">' + s.icon + '</svg>' +
         '<h3>' + s.name + '</h3>' +
       '</div>' +
       '<div class="skill-items">' +
-        s.items.map(function (i) { return '<span class="chip">' + i + '</span>'; }).join('') +
+        s.items.map(function (i, n) {
+          return '<span class="chip" style="--n:' + n + '">' + i + '</span>';
+        }).join('') +
       '</div></div>';
   }).join('');
 
@@ -1740,7 +1778,7 @@ footer { border-top: 1px solid var(--border); padding: 2.25rem 0; background: va
   // Lines are pre-escaped structural HTML; only static strings are typed.
   var TERM = [
     { html: '<span class="p">$</span> <span class="k">whoami</span>' },
-    { html: '<span class="v">ravi_rajput</span> <span class="c">— b.tech cse, sitare university</span>' },
+    { html: '<span class="v">ravi_rajput</span> <span class="c">— b.tech cse, lucknow</span>' },
     { html: '<span class="p">$</span> <span class="k">cat</span> <span class="v">focus.json</span>' },
     { html: '<span class="c">{</span>' },
     { html: '  <span class="v">"building"</span><span class="c">:</span> <span class="k">"practical software"</span><span class="c">,</span>' },
